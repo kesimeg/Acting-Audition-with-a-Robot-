@@ -31,44 +31,41 @@ class Net(nn.Module):
         super(Net, self).__init__()
 
         self.image_conv =nn.Sequential(
-        nn.Conv2d(1, 64, 3, padding = (1,1)),
-        nn.Conv2d(64, 128, 3, padding = (1,1)),
-        nn.MaxPool2d(2),
+        nn.Conv2d(1, 64, 1, padding = (0,0)),
+        nn.Conv2d(64, 64, 1, padding = (0,0)),
         nn.LeakyReLU(),
-        nn.Conv2d(128, 128, 3, padding = (1,1)),
-        nn.Conv2d(128, 32, 3, padding = (1,1)),
-        nn.MaxPool2d(2),
+        nn.Conv2d(64, 32, 1, padding = (0,0)),
+        nn.Conv2d(32, 32, 1, padding = (0,0)),
         nn.LeakyReLU(),
         )
 
-        self.lstm = nn.LSTM(15*10*32, 1000, 2, batch_first=True)
+        self.lstm = nn.LSTM(60*3*32, 1000, 2, batch_first=True)
 
         self.out_fc = nn.Sequential(
         nn.Linear(1000, 400),
         nn.LeakyReLU(),
-        nn.Linear(400,12)
+        nn.Linear(400,4)
         )
 
     def forward(self, x ):
 
+        
+        batch_size = x.size(0)
+        h0 = torch.zeros(2, batch_size, 1000).to(device)
+        c0 = torch.zeros(2, batch_size, 1000).to(device)
 
-        batch_size = x.size(1)
-        h0 = torch.zeros(2, x.size(1), 1000).to(device)
-        c0 = torch.zeros(2, x.size(1), 1000).to(device)
-
-        x = self.image_conv(x.view((-1,1,60,41)))
+        x = self.image_conv(x.view((-1,1,60,3)))
 
         #x = x.reshape(-1, sequence_length, 60*3)
 
 
 
-        x, _ = self.lstm(x.view((batch_size,-1,15*10*32)), (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+        x, _ = self.lstm(x.view((batch_size,-1,60*3*32)), (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
 
         x = self.out_fc(x[:, -1, :])
 
         return x
 
-"""
 def get_label(name): #converts names to int labels
     if "ANG" in name:
         return 0
@@ -78,34 +75,8 @@ def get_label(name): #converts names to int labels
         return 2
     elif "SAD" in name:
         return 3
-"""
 
-def get_label(name): #converts names to int labels
-    if "DFA" in name:
-        return 0
-    elif "IEO" in name:
-        return 1
-    elif "IOM" in name:
-        return 2
-    elif "ITH" in name:
-        return 3
-    elif "IWL" in name:
-        return 4
-    elif "IWW" in name:
-        return 5
-    elif "MTI" in name:
-        return 6
-    elif "TAI" in name:
-        return 7
-    elif "TIE" in name:
-        return 8
-    elif "TSI" in name:
-        return 9
-    elif "WSI" in name:
-        return 10
-    elif "ITS" in name:
-        return 11
-"""
+
 class Audio_video_dataset(Dataset):
 
 
@@ -140,7 +111,7 @@ class Audio_video_dataset(Dataset):
         label = get_label(selected_elem)
 
         return audio_data,label
-"""
+
 #https://docs.nvidia.com/deeplearning/sdk/dali-developer-guide/docs/examples/pytorch/pytorch-basic_example.html
 #https://www.cs.virginia.edu/~vicente/recognition/notebooks/rnn_lab.html
 #https://scikit-image.org/docs/dev/api/skimage.io.html
@@ -148,58 +119,15 @@ class Audio_video_dataset(Dataset):
 #transform_var=transforms.Compose([Rescale(160),horizontal_flip(160),ToTensor(),illumination_change(),random_noise()])
 
 
-class Audio_video_dataset(Dataset):
-
-
-    def __init__(self, root_dir, transform=None):
-
-
-        self.data_list = os.listdir(root_dir)
-        self.transform = transform
-        self.root_dir = root_dir
-
-    def __len__(self):
-        return len(self.data_list)
-
-
-    #https://github.com/HHTseng/video-classification/blob/master/CRNN/functions.py
-
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        audio_name = self.data_list[idx]
-        audio_name = os.path.join(self.root_dir,
-                                audio_name)
-
-        audio_data = torch.load(audio_name)
-
-        label = get_label(audio_name)
-        return audio_data,label
-
-"""
-dataset_train = Audio_video_dataset(h5_file="audio_features_4class_long_train.hdf5",
+dataset_train = Audio_video_dataset(h5_file="../data/audio/audio_features_4class(1pad)_train.hdf5",
                                            video_root_dir='cropped_face_frames',
                                            transform=transforms.Compose([
                                               transforms.Resize((64,64)),
                                               transforms.ToTensor()
                                            ]))
 
-dataset_valid = Audio_video_dataset(h5_file="audio_features_4class_long_test.hdf5",
+dataset_valid = Audio_video_dataset(h5_file="../data/audio/audio_features_4class(1pad)_test.hdf5",
                                            video_root_dir='cropped_face_frames',
-                                           transform=transforms.Compose([
-                                              transforms.Resize((64,64)),
-                                              transforms.ToTensor()
-                                           ]))
-"""
-
-dataset_train = Audio_video_dataset(root_dir='audio_features_3c_train',
-                                           transform=transforms.Compose([
-                                              transforms.Resize((64,64)),
-                                              transforms.ToTensor()
-                                           ]))
-
-dataset_valid = Audio_video_dataset(root_dir='audio_features_3c_test',
                                            transform=transforms.Compose([
                                               transforms.Resize((64,64)),
                                               transforms.ToTensor()
@@ -207,9 +135,9 @@ dataset_valid = Audio_video_dataset(root_dir='audio_features_3c_test',
 
 def customBatchBuilder(samples):
     audio_data, label = zip(*samples)
+    audio_data = pad_sequence(audio_data, batch_first=True, padding_value=0)
 
-    audio_data = pad_sequence(audio_data)
-
+    #audio_data = audio_data.view((-1,7,60,41,1))
     label = torch.Tensor(label).int()
     return audio_data,label
 
@@ -217,16 +145,17 @@ def customBatchBuilder(samples):
 batch_size = 64
 
 train_loader = DataLoader(dataset_train, batch_size=batch_size,
-                        shuffle=True, num_workers=4, collate_fn=customBatchBuilder)
+                        shuffle=True, num_workers=0, collate_fn=customBatchBuilder)
 
 
 
 
 valid_loader = DataLoader(dataset_valid, batch_size=batch_size,
-                        shuffle=True, num_workers=4, collate_fn=customBatchBuilder)
+                        shuffle=True, num_workers=0, collate_fn=customBatchBuilder)
 
 
 train_set_size = len(dataset_train)
+
 valid_set_size = len(dataset_valid)
 
 print("Train set size:",train_set_size)
@@ -328,7 +257,7 @@ def train_model(model, criterion, optimizer, num_epochs=25,checkp_epoch=0,schedu
                     scheduler.step()
             # statistics
 
-            running_loss += loss.item() * input.size(1)
+            running_loss += loss.item() * input.size(0)
             running_corrects += torch.sum(preds == labels.data)
 
         train_loss = running_loss / train_set_size
@@ -360,7 +289,12 @@ def train_model(model, criterion, optimizer, num_epochs=25,checkp_epoch=0,schedu
 
         val_loss = running_loss / valid_set_size
         val_acc = running_corrects.double() / valid_set_size
+        """
+        for p in model.parameters(): #,model._all_weights[0]): #prints gradients below
+            #if n[:6] == 'weight':
 
+            print('===========\ngradient:{}\n----------\n{}----------\n{}'.format(p.grad,p.grad.shape,p.grad.mean()))
+        """
         torch.save({
              'epoch': epoch,
              'model_state_dict': model.state_dict(),
@@ -408,11 +342,7 @@ criterion = nn.CrossEntropyLoss()
 
 # Observe that all parameters are being optimized
 
-optimizer_ft = optim.Adam(model_ft.parameters(), lr=1e-4)
-
-# Decay LR by a factor of 0.1 every 7 epochs
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=500, gamma=0.1)
-
+optimizer_ft = optim.Adam(model_ft.parameters(), lr=1e-3)
 
 now=datetime.now()
 
@@ -421,14 +351,6 @@ plot_file="emotion_plot"+now.strftime("%d_%m_%Y_%H:%M:%S")+".csv"
 
 
 num_epochs=100
-if os.path.exists(checkpoint_file):
-        print("Model loaded")
-        checkpoint = torch.load(checkpoint_file)
-        model_ft.load_state_dict(checkpoint['model_state_dict'])
-        optimizer_ft.load_state_dict(checkpoint['optimizer_state_dict'])
-        model_ft.train()
-        model_ft = train_model(model_ft, criterion, optimizer_ft,
-                       num_epochs=num_epochs,checkp_epoch=checkpoint['epoch']+1)
-else:
-    model_ft = train_model(model_ft, criterion, optimizer_ft,
-                       num_epochs=num_epochs,scheduler=exp_lr_scheduler)
+
+model_ft = train_model(model_ft, criterion, optimizer_ft,
+                      num_epochs=num_epochs,scheduler=None)
