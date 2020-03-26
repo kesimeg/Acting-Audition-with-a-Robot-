@@ -19,37 +19,43 @@ from PIL import Image
 from skimage import io, transform
 from torch.utils.data import Dataset, DataLoader
 import h5py
-
+import argparse
 from torch.nn.utils.rnn import pad_sequence
 
 np.random.seed(2)
 torch.manual_seed(2)
 
+parser = argparse.ArgumentParser(description='Emotion detection')
 
+parser.add_argument('--log', type=str, default="True",
+                    help='logging of acc. and weights')
+args = parser.parse_args()
+print(args.log)
+
+
+"""
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
 
         self.image_conv =nn.Sequential(
-        nn.Conv2d(1, 64, 1, padding = (0,0)),
-        nn.Conv2d(64, 64, 1, padding = (0,0)),
+        nn.Conv2d(1, 16, 1, padding = (0,0)),
         nn.LeakyReLU(),
-        nn.Conv2d(64, 32, 1, padding = (0,0)),
-        nn.Conv2d(32, 32, 1, padding = (0,0)),
+        nn.Conv2d(16, 16,1, padding = (0,0)),
         nn.LeakyReLU(),
         )
 
-        self.lstm = nn.LSTM(60*3*32, 1000, 2, batch_first=True)
+        self.lstm = nn.LSTM(60*3*16, 1000, 2, batch_first=True)
 
         self.out_fc = nn.Sequential(
         nn.Linear(1000, 400),
         nn.LeakyReLU(),
-        nn.Linear(400,4)
+        nn.Linear(400,6)
         )
 
     def forward(self, x ):
 
-        
+
         batch_size = x.size(0)
         h0 = torch.zeros(2, batch_size, 1000).to(device)
         c0 = torch.zeros(2, batch_size, 1000).to(device)
@@ -60,11 +66,59 @@ class Net(nn.Module):
 
 
 
-        x, _ = self.lstm(x.view((batch_size,-1,60*3*32)), (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+        x, _ = self.lstm(x.view((batch_size,-1,60*3*16)), (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
 
         x = self.out_fc(x[:, -1, :])
 
         return x
+"""
+class Net(nn.Module):
+    def __init__(self):
+        super(Net, self).__init__()
+
+        self.image_conv =nn.Sequential(
+        nn.Conv2d(2, 32, 3, padding = (1,1)),
+        #nn.Conv2d(64, 64, 3, padding = (1,1)),
+        nn.BatchNorm2d(32),
+        nn.LeakyReLU(),
+        nn.MaxPool2d(2),
+        nn.Conv2d(32, 32, 3, padding = (1,1)),
+        #nn.Conv2d(32, 32, 3, padding = (1,1)),
+        nn.BatchNorm2d(32),
+        nn.LeakyReLU(),
+        nn.MaxPool2d(2),
+        )
+
+        self.lstm = nn.LSTM(10*15*32, 1000, 1, batch_first=True)
+
+        self.out_fc = nn.Sequential(
+        nn.Dropout(0.8),
+        nn.Linear(1000, 3),
+        #nn.LeakyReLU(),
+        #nn.Linear(400,6)
+        )
+
+    def forward(self, x ):
+
+
+        batch_size = x.size(0)
+        h0 = torch.zeros(1, batch_size, 1000).to(device)
+        c0 = torch.zeros(1, batch_size, 1000).to(device)
+
+        x = self.image_conv(x.view((-1,2,60,41)))
+
+        #x = x.reshape(-1, sequence_length, 60*3)
+
+
+
+        x, _ = self.lstm(x.view((batch_size,-1,10*15*32)), (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+
+        #print(x.shape)
+
+        x = self.out_fc(x[:, -1, :]) #gets the last step of the lstm (original shape is batch,step number,hidden_size)
+
+        return x
+
 
 def get_label(name): #converts names to int labels
     if "ANG" in name:
@@ -75,18 +129,61 @@ def get_label(name): #converts names to int labels
         return 2
     elif "SAD" in name:
         return 3
+    elif "DIS" in name:
+        return 4
+    elif "FEA" in name:
+        return 5
 
 
-class Audio_video_dataset(Dataset):
+def get_subset_label(name):
+    if "ANG" in name:
+        return 0
+    elif "HAP" in name:
+        return 1
+    elif "SAD" in name:
+        return 2
+    elif "NEU" in name:
+        return 3
+
+def get_word_label(name):
+    if "IEO" in name:
+        return 0
+    elif "TIE" in name:
+        return 1
+    elif "IOM" in name:
+        return 2
+    elif "IWW" in name:
+        return 3
+    elif "TAI" in name:
+        return 4
+    elif "MTI" in name:
+        return 5
+    elif "IWL" in name:
+        return 6
+    elif "ITH" in name:
+        return 7
+    elif "DFA" in name:
+        return 8
+    elif "ITS" in name:
+        return 9
+    elif "TSI" in name:
+        return 10
+    elif "WSI" in name:
+        return 11
+
+class Audio_dataset(Dataset):
 
 
-    def __init__(self, h5_file, video_root_dir, transform=None):
+    def __init__(self, h5_file):
 
         self.h5_file = h5_file
-        self.data = h5py.File(self.h5_file, 'r')
-        self.keys = list(self.data.keys())
 
-        self.video_root_dir = video_root_dir
+        self.audio_dict = {}
+        with  h5py.File(self.h5_file, 'r') as f:
+            self.keys = list(f.keys())
+            for key in self.keys:
+                self.audio_dict[key]=f[key][:]
+        #self.keys = list(self.data.keys())
         self.transform = transform
 
 
@@ -101,14 +198,11 @@ class Audio_video_dataset(Dataset):
             idx = idx.tolist()
 
         selected_elem = self.keys[idx] #current elemen (audio,video)
-        sequence_name = os.path.join(self.video_root_dir,
-                                selected_elem)
 
-        audio_data = torch.from_numpy(self.data[selected_elem][:])
+        audio_data = torch.from_numpy(self.audio_dict[selected_elem])
+        audio_data+=torch.rand(audio_data.size())
 
-        video_dir = sequence_name+".flv"
-
-        label = get_label(selected_elem)
+        label = get_subset_label(selected_elem)
 
         return audio_data,label
 
@@ -119,19 +213,9 @@ class Audio_video_dataset(Dataset):
 #transform_var=transforms.Compose([Rescale(160),horizontal_flip(160),ToTensor(),illumination_change(),random_noise()])
 
 
-dataset_train = Audio_video_dataset(h5_file="../data/audio/audio_features_4class(1pad)_train.hdf5",
-                                           video_root_dir='cropped_face_frames',
-                                           transform=transforms.Compose([
-                                              transforms.Resize((64,64)),
-                                              transforms.ToTensor()
-                                           ]))
+dataset_train = Audio_dataset(h5_file="data/audio/Ang_hap_sad_delta/audio_features_3lass_delta_train_long.hdf5")
 
-dataset_valid = Audio_video_dataset(h5_file="../data/audio/audio_features_4class(1pad)_test.hdf5",
-                                           video_root_dir='cropped_face_frames',
-                                           transform=transforms.Compose([
-                                              transforms.Resize((64,64)),
-                                              transforms.ToTensor()
-                                           ]))
+dataset_valid = Audio_dataset(h5_file="data/audio/Ang_hap_sad_delta/audio_features_3class_delta_test_long.hdf5")
 
 def customBatchBuilder(samples):
     audio_data, label = zip(*samples)
@@ -145,13 +229,13 @@ def customBatchBuilder(samples):
 batch_size = 64
 
 train_loader = DataLoader(dataset_train, batch_size=batch_size,
-                        shuffle=True, num_workers=0, collate_fn=customBatchBuilder)
+                        shuffle=True, num_workers=3, collate_fn=customBatchBuilder)
 
 
 
 
 valid_loader = DataLoader(dataset_valid, batch_size=batch_size,
-                        shuffle=True, num_workers=0, collate_fn=customBatchBuilder)
+                        shuffle=True, num_workers=3, collate_fn=customBatchBuilder)
 
 
 train_set_size = len(dataset_train)
@@ -199,21 +283,14 @@ def imshow(inp, title=None):
 
 inputs, labels = next(iter(train_loader))
 
-
-
-# Make a grid from batch
-
-#out = torchvision.utils.make_grid(inputs) #belli bir bölümünü ekrana bas (resmin son halini görmek için)
-
-#imshow(inputs)
-
-
+print(inputs.shape)
 
 def train_model(model, criterion, optimizer, num_epochs=25,checkp_epoch=0,scheduler=None):
     since = time.time()
 
-    #best_model_wts = copy.deepcopy(model.state_dict())
-    my_file=open(plot_file, "a")
+    
+    if args.log == "True":
+        my_file=open(plot_file, "a")
 
 
 
@@ -232,7 +309,7 @@ def train_model(model, criterion, optimizer, num_epochs=25,checkp_epoch=0,schedu
         #pbar=tqdm(train_loader)
         for sample in train_loader:
             input ,labels = sample
-
+            batch_size = input.size(0)
             input = input.to(device) #.reshape(-1, input.size(0), 60*41)
 
             labels = labels.long().to(device)
@@ -246,7 +323,7 @@ def train_model(model, criterion, optimizer, num_epochs=25,checkp_epoch=0,schedu
             # track history if only in train
             with torch.set_grad_enabled(True):
 
-                outputs = model(input)
+                outputs = model(input.float())
 
                 _, preds = torch.max(outputs, 1)
                 loss = criterion(outputs, labels)
@@ -255,7 +332,7 @@ def train_model(model, criterion, optimizer, num_epochs=25,checkp_epoch=0,schedu
                 optimizer.step()
                 if scheduler!=None:
                     scheduler.step()
-            # statistics
+        
 
             running_loss += loss.item() * input.size(0)
             running_corrects += torch.sum(preds == labels.data)
@@ -263,8 +340,7 @@ def train_model(model, criterion, optimizer, num_epochs=25,checkp_epoch=0,schedu
         train_loss = running_loss / train_set_size
         train_acc = running_corrects.double() / train_set_size
 
-            #print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-            #    phase, epoch_loss, epoch_acc))
+
         model.eval()   # Set model to evaluate mode
 
         running_loss = 0.0
@@ -279,12 +355,12 @@ def train_model(model, criterion, optimizer, num_epochs=25,checkp_epoch=0,schedu
                 # forward
                 # track history if only in train
                 with torch.set_grad_enabled(False):
-                    outputs = model(input)
+                    outputs = model(input.float())
                     _, preds = torch.max(outputs, 1)
                     loss = criterion(outputs, labels)
 
                 # statistics
-                running_loss += loss.item() * inputs.size(1)
+                running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
 
         val_loss = running_loss / valid_set_size
@@ -295,22 +371,23 @@ def train_model(model, criterion, optimizer, num_epochs=25,checkp_epoch=0,schedu
 
             print('===========\ngradient:{}\n----------\n{}----------\n{}'.format(p.grad,p.grad.shape,p.grad.mean()))
         """
-        torch.save({
-             'epoch': epoch,
-             'model_state_dict': model.state_dict(),
-             'optimizer_state_dict': optimizer.state_dict(),
-             'loss': loss
-             },checkpoint_file)
+        if args.log == "True":
+            torch.save({
+                 'epoch': epoch,
+                 'model_state_dict': model.state_dict(),
+                 'optimizer_state_dict': optimizer.state_dict(),
+                 'loss': loss
+                 },checkpoint_file)
 
 
-        data = {'epoch': epoch,
-        'train_loss': train_loss,
-        'train_acc':train_acc.item(),
-        'val_loss':val_loss,
-        'val_acc':val_acc.item()
-        }
-        df = pd.DataFrame(data,index=[0])#index=[0] denmezse hata veriyor
-        df.to_csv(my_file, header=False,index=False)
+            data = {'epoch': epoch,
+            'train_loss': train_loss,
+            'train_acc':train_acc.item(),
+            'val_loss':val_loss,
+            'val_acc':val_acc.item()
+            }
+            df = pd.DataFrame(data,index=[0])#index=[0] denmezse hata veriyor
+            df.to_csv(my_file, header=False,index=False)
         #print()
 
         pbar.set_description("train acc {:.3} loss {:.4} val acc {:.3} loss {:.4}".format(train_acc,train_loss,val_acc,val_loss))
@@ -342,15 +419,25 @@ criterion = nn.CrossEntropyLoss()
 
 # Observe that all parameters are being optimized
 
-optimizer_ft = optim.Adam(model_ft.parameters(), lr=1e-3)
+optimizer_ft = optim.Adam(model_ft.parameters(), lr=1e-5)
 
 now=datetime.now()
 
-checkpoint_file="emotion"+now.strftime("%d_%m_%Y_%H:%M:%S")+".pt"
-plot_file="emotion_plot"+now.strftime("%d_%m_%Y_%H:%M:%S")+".csv"
+checkpoint_file="emotion_delta3_class"+now.strftime("%d_%m_%Y_%H:%M:%S")+".pt"
+plot_file="emotion_plot_delta3_class"+now.strftime("%d_%m_%Y_%H:%M:%S")+".csv"
 
 
 num_epochs=100
+"""
+checkpoint = torch.load("emotion19_03_2020_01:12:17.pt")
+
+
+model_ft.load_state_dict(checkpoint['model_state_dict'])
+optimizer_ft.load_state_dict(checkpoint['optimizer_state_dict'])
+
+"""
+
+
 
 model_ft = train_model(model_ft, criterion, optimizer_ft,
                       num_epochs=num_epochs,scheduler=None)
