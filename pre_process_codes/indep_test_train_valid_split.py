@@ -11,7 +11,7 @@ cropped_keys=[]
 np.random.seed(2)
 
 file_root_dir = "../data/audio"
-file_name = "audio_features_6class_long_mfcc_delta.hdf5"
+file_name = "audio_features_6class_long.hdf5"
 read_dir="Unsplit"
 file_dir = os.path.join(file_root_dir,read_dir,file_name)
 
@@ -27,7 +27,7 @@ total_participant = 1091-1001+1
 
 num_test_size = total_participant//10
 
-random_index = np.random.choice(total_participant, num_test_size*2, replace=False)#np.random.randint(0, len(index_list),size=num_test_size)
+random_index = np.random.choice(total_participant, num_test_size*2, replace=False)
 random_index = random_index+1001
 print(random_index)
 test_particip = random_index[:len(random_index)//2].astype(str)
@@ -76,7 +76,7 @@ val_file_name = "audio_features_3class_mfcc_delta_val_long.hdf5"
 train_file_name = "audio_features_3class_mfcc_delta_train_long.hdf5"
 
 
-"""
+
 with h5py.File(file_dir, 'r') as f:
     with h5py.File(os.path.join(file_root_dir,file_save_dir,test_file_name),"w") as hdf:
         for i in test_keys:
@@ -96,4 +96,4 @@ with h5py.File(file_dir, 'r') as f:
                 features = np.array(f[i][:])
                 hdf.create_dataset(i,data=features)
     print("Train data created")
-"""
+
