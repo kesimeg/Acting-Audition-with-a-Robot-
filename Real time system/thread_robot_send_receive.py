@@ -14,38 +14,24 @@ import websockets
 
 async def send_mess():
     uri = "ws://localhost:8080"
-    #uri ='ws://192.168.1.37:8080/api'
-    #m='{"event_name":"furhatos.event.actions.ActionGesture","name":"Nod"}'
-
     while True:
         global send_messagge
-        #time.sleep(1)
+        
         if send_messagge == True:
-            message = '{"event_name":"furhatos.event.actions.ActionGesture","name":"Nod"}'
+            message = '{"event_name":"Gesture","name":"Smile"}'
             async with websockets.connect(uri) as websocket:
                 await websocket.send(message)
             send_messagge = False
 
 async def receive_mess():
     uri = "ws://localhost:8080"
-    #uri ='ws://192.168.1.37:8080/api'
     async with websockets.connect(uri) as websocket:
         while True:
             global receive_messagge
             global message
             message = await websocket.recv()
             receive_messagge = True
-            #print(message)
-            #print(receive_messagge)
-        """
-        while True:
-            global receive_messagge
-            global message
-            message = await websocket.recv()
-            print(message)
-            if message is not None:
-                receive_messagge = True
-        """
+
 
 
 def thread1(threadname):
@@ -58,8 +44,7 @@ def thread2(threadname):
         global send_messagge
         global receive_messagge
         global message
-        #time.sleep(5)
-        #print(1)
+
 
         send_messagge = True
 
