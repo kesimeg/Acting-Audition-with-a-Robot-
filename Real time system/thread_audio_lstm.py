@@ -36,11 +36,6 @@ def extract_features(sound_clip, bands = 60, frames = 41):
             log_specgrams.append(logspec)
 
     log_specgrams = np.asarray(log_specgrams).reshape(len(log_specgrams),bands,-1)
-    #log_specgrams = np.concatenate((log_specgrams, log_specgrams[-1:]), axis=0) #add last two frames again because of frame mistmatch
-    #features = np.concatenate((log_specgrams, np.zeros(np.shape(log_specgrams))), axis = 3)
-    #for i in range(len(features)):
-    #    features[i, :, :, 1] = librosa.feature.delta(features[i, :, :, 0])
-    #shape (5,60,41,2)Z
     return torch.from_numpy(np.array(log_specgrams))
 
 
@@ -53,12 +48,10 @@ class Net(nn.Module):
 
         self.image_conv =nn.Sequential(
         nn.Conv2d(1, 32, 3, padding = (1,1)),
-        #nn.Conv2d(64, 64, 3, padding = (1,1)),
         nn.BatchNorm2d(32),
         nn.LeakyReLU(),
         nn.MaxPool2d(2),
         nn.Conv2d(32, 32, 3, padding = (1,1)),
-        #nn.Conv2d(32, 32, 3, padding = (1,1)),
         nn.BatchNorm2d(32),
         nn.LeakyReLU(),
         nn.MaxPool2d(2),
@@ -69,8 +62,6 @@ class Net(nn.Module):
         self.out_fc = nn.Sequential(
         nn.Dropout(0.8),
         nn.Linear(1000, 6),
-        #nn.LeakyReLU(),
-        #nn.Linear(400,6)
         )
 
     def forward(self, x ):
@@ -82,11 +73,7 @@ class Net(nn.Module):
 
         x = self.image_conv(x.view((-1,1,60,41)))
 
-        #x = x.reshape(-1, sequence_length, 60*3)
-
-
-
-        x, _ = self.lstm(x.view((batch_size,-1,10*15*32)), (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+        x, _ = self.lstm(x.view((batch_size,-1,10*15*32)), (h0, c0))  
 
         x = self.out_fc(x[:, -1, :])
 
@@ -115,23 +102,15 @@ def thread1(threadname):
         if record_audio == True:
             start = time.time()
             stream = p.open(format=pyaudio.paInt16, channels=1, rate=RATE, input=True, frames_per_buffer=CHUNK)
-            #frames = []
 
             print("thread 1 start record",record_audio)
             frames = np.zeros(int(LEN*RATE))
-            for i in range(int(LEN*RATE/CHUNK)): #go for a LEN seconds
+            for i in range(int(LEN*RATE/CHUNK)): 
 
                 data = np.frombuffer(stream.read(CHUNK),dtype=np.int16)
-                #frames.append(data/)
+
                 frames[i*32:(i+1)*32]=data/32767
-            """
-            wf = wave.open("deneme{:d}.wav".format(count), 'wb')
-            wf.setnchannels(1)
-            wf.setsampwidth(p.get_sample_size(FORMAT))
-            wf.setframerate(RATE)
-            wf.writeframes(b''.join(frames))
-            wf.close()
-            """
+
             count+=1
 
             stream.stop_stream()
@@ -165,17 +144,7 @@ def thread2(threadname):
         time.sleep(20)
 
         record_audio = True
-        #print(1)
 
-        #send_messagge = True
-        """
-        if receive_messagge == True:
-            print("thread",message)
-            receive_messagge = False
-            global record_audio
-            record_audio = True
-            print(record_audio)
-        """
 
 thread1 = Thread( target=thread1, args=("Thread-1", ) )
 thread2 = Thread( target=thread2, args=("Thread-2", ) )
