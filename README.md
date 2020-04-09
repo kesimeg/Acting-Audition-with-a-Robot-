@@ -7,7 +7,7 @@ Emotion detector models: Includes training codes for two different architectures
 
 Pre process codes: Includes codes for train/test split, audio preprocessing for feature extraction
 
-Real time system : Includes codes for real time system. There are two files. One file records audio and uses an lstm to classify the audio. The other code receives and sends messages to robot. These two codes will be eventually get together.
+Real time system : Includes a code for real time system. It can send a message and receive a message from robot. Also it can record audio and categorize it. All these processes are done in parallel.
 
 class_accs.py: Calculates class individual accuracies and calculates the confusion matrix.
 
