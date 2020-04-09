@@ -42,11 +42,6 @@ def extract_features(sound_clip, bands = 60, frames = 41):
             log_specgrams.append(logspec)
 
     log_specgrams = np.asarray(log_specgrams).reshape(len(log_specgrams),bands,-1)
-    #log_specgrams = np.concatenate((log_specgrams, log_specgrams[-1:]), axis=0) #add last two frames again because of frame mistmatch
-    #features = np.concatenate((log_specgrams, np.zeros(np.shape(log_specgrams))), axis = 3)
-    #for i in range(len(features)):
-    #    features[i, :, :, 1] = librosa.feature.delta(features[i, :, :, 0])
-    #shape (5,60,41,2)Z
     return torch.from_numpy(np.array(log_specgrams))
 
 
@@ -59,12 +54,10 @@ class Net(nn.Module):
 
         self.image_conv =nn.Sequential(
         nn.Conv2d(1, 32, 3, padding = (1,1)),
-        #nn.Conv2d(64, 64, 3, padding = (1,1)),
         nn.BatchNorm2d(32),
         nn.LeakyReLU(),
         nn.MaxPool2d(2),
         nn.Conv2d(32, 32, 3, padding = (1,1)),
-        #nn.Conv2d(32, 32, 3, padding = (1,1)),
         nn.BatchNorm2d(32),
         nn.LeakyReLU(),
         nn.MaxPool2d(2),
@@ -75,8 +68,6 @@ class Net(nn.Module):
         self.out_fc = nn.Sequential(
         nn.Dropout(0.8),
         nn.Linear(1000, 6),
-        #nn.LeakyReLU(),
-        #nn.Linear(400,6)
         )
 
     def forward(self, x ):
@@ -87,10 +78,6 @@ class Net(nn.Module):
         c0 = torch.zeros(1, batch_size, 1000)
 
         x = self.image_conv(x.view((-1,1,60,41)))
-
-        #x = x.reshape(-1, sequence_length, 60*3)
-
-
 
         x, _ = self.lstm(x.view((batch_size,-1,10*15*32)), (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
 
@@ -108,11 +95,10 @@ def on_message(ws, messg):
 
 def on_close(ws):
     print("### closed ###")
-#https://stackoverflow.com/questions/37172006/python-3-threaded-websockets-server
 
 def on_open(ws):
-    ws.send('{"event_name":"furhatos.event.actions.ActionSpeech","text ":"furhat"}')
-    ws.send('{"event_name":"furhatos.event.actions.ActionRealTimeAPISubscribe","name":"Nod"}')
+    ws.send('Connected1')
+    ws.send('Connected2')
 def thread1(threadname):
     CHUNK = 2**5
     RATE = 22050 #44100
@@ -164,7 +150,7 @@ def thread1(threadname):
             audio_class = class_dict[preds.item()]
             print(audio_class)
 
-            ws.send('{"event_name":"furhatos.event.actions.ActionSpeech","text":"Hello I am Furhat"}')
+            ws.send('message')
             #print("thread 1 finish record",record_audio, time.time()-start,preds)
             record_audio = False
             record_finish = True
@@ -182,9 +168,9 @@ def thread2(threadname):
     global record_finish
     global audio_class
     while True:
-        time.sleep(1) #https://stackoverflow.com/questions/46154656/how-to-pass-parameters-to-a-running-python-thread
+        time.sleep(1) 
         #receive_messagge = True #https://pypi.org/project/websocket_client/
-        # bu hailiyle 10 saniye problem yok
+      
         if receive_messagge == True:
             print("mess received")
             if "Nod" in message_rec:
@@ -192,22 +178,13 @@ def thread2(threadname):
                 receive_messagge = False
             print("message false")
 
-        """
-        if record_finish == True:
-            message_send = audio_class
-            print(audio_class)
-            send_messagge = True
-            record_finish = False
-        """
-
 
 thread1 = Thread( target=thread1, args=("Thread-1", ) )
 thread2 = Thread( target=thread2, args=("Thread-2", ) )
 
 
 websocket.enableTrace(True)
-#uri = "ws://localhost:8080/websocket"
-uri ='ws://192.168.1.35:8080/api'
+uri = "ws://localhost:8080/websocket"
 
 ws = websocket.WebSocketApp(uri, on_message = on_message, on_close = on_close , on_open = on_open)
 wst = Thread(target=ws.run_forever)
@@ -219,10 +196,6 @@ wst.daemon = True
 thread1.start()
 thread2.start()
 wst.start()
-
-
-#asyncio.get_event_loop().run_until_complete(send_mess())
-#asyncio.get_event_loop().run_until_complete(receive_mess())
 thread1.join()
 thread2.join()
 wst.join()
