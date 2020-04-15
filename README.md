@@ -15,3 +15,5 @@ Then using indep_test_train_valid_split.py split data into three hd5f files for 
 Train the model using audio_video_emotion.py. Put the pt file in to Real time system folder.
 
 To interact with the robot run the real_time_system.py before starting the game.
+
+Comp537_Project is the project of the game with the robot. It can be opened with InetelliJ IDEA.
