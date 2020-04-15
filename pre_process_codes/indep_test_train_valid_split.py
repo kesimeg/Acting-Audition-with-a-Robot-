@@ -71,9 +71,9 @@ if not os.path.exists(os.path.join(file_root_dir,file_save_dir)):
     os.mkdir(os.path.join(file_root_dir,file_save_dir))
 
 
-test_file_name = "audio_features_3class_mfcc_delta_test_long.hdf5"
-val_file_name = "audio_features_3class_mfcc_delta_val_long.hdf5"
-train_file_name = "audio_features_3class_mfcc_delta_train_long.hdf5"
+test_file_name = "audio_features_3class_long.hdf5"
+val_file_name = "audio_features_3class_long.hdf5"
+train_file_name = "audio_features_3class_long.hdf5"
 
 
 
