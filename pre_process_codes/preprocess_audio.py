@@ -78,7 +78,7 @@ pbar=tqdm(arr)
 
 
 count = 0
-with h5py.File("audio_features_6class.hdf5","w") as hdf:
+with h5py.File("audio_features_6class_long.hdf5","w") as hdf:
     for i in pbar:
         count+=1
         sound, _ = librosa.load(os.path.join(data_dir, i))
