@@ -12,11 +12,9 @@ np.random.seed(2)
 
 file_root_dir = "../data/audio"
 file_name = "audio_features_6class_long.hdf5"
-read_dir="Unsplit"
-file_dir = os.path.join(file_root_dir,read_dir,file_name)
+file_dir = os.path.join(file_root_dir,file_name)
 
 with h5py.File(file_dir, 'r') as f:
-    # List all groups
     a_group_key = list(f.keys())
 
 
@@ -43,11 +41,9 @@ for i in range(len(cropped_keys)):
     for j in test_particip:
         if j in cropped_keys[i]:
             test_index.append(i)
-            #print(j,i,cropped_keys[i])
     for j in val_particip:
         if j in cropped_keys[i]:
             val_index.append(i)
-            #print(j,i)
 print(len(test_index))
 print(len(val_index))
 
@@ -66,14 +62,14 @@ cropped_keys = np.delete(cropped_keys,test_index+val_index)
 
 print("After deleting len",len(cropped_keys))
 
-file_save_dir = "Ang_hap_sad_mfcc_delta"
+file_save_dir = "Ang_hap_sad"
 if not os.path.exists(os.path.join(file_root_dir,file_save_dir)):
     os.mkdir(os.path.join(file_root_dir,file_save_dir))
 
 
-test_file_name = "audio_features_3class_long.hdf5"
-val_file_name = "audio_features_3class_long.hdf5"
-train_file_name = "audio_features_3class_long.hdf5"
+test_file_name = "audio_features_3class_test_long.hdf5"
+val_file_name = "audio_features_3class_val_long.hdf5"
+train_file_name = "audio_features_3class_train_long.hdf5"
 
 
 
@@ -96,4 +92,3 @@ with h5py.File(file_dir, 'r') as f:
                 features = np.array(f[i][:])
                 hdf.create_dataset(i,data=features)
     print("Train data created")
-
