@@ -40,8 +40,8 @@ def windows(data, window_size):
 
 
 def extract_features(sound_clip, bands = 60, frames = 41):
-    #window_size = 512 * (frames - 1)
-    window_size = 22050//15 #30fps
+    window_size = 512 * (frames - 1)
+    #window_size = 22050//15 #30fps
     log_specgrams = []
     for (start,end) in windows(sound_clip,window_size):
         if(len(sound_clip[int(start):int(end)]) == window_size):
@@ -57,7 +57,7 @@ def extract_features(sound_clip, bands = 60, frames = 41):
 
     return torch.from_numpy(np.array(log_specgrams))
 
-data_dir = "audio_files_ege_extracted"
+data_dir = "audio_files" #path of audio files
 
 
 arr = os.listdir(data_dir)
