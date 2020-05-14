@@ -83,21 +83,22 @@ class Net(nn.Module):
         nn.MaxPool2d(2),
         )
         self.lstm_img = nn.LSTM(16*16*32, 1000, 1, batch_first=True)
-        self.lstm_aud = nn.LSTM(10*15*32, 1000, 1, batch_first=True)
+        self.lstm_aud = nn.LSTM(10*15*32, 500, 1, batch_first=True)
 
         self.out_fc = nn.Sequential(
-        nn.Dropout(0.8),
-        nn.Linear(2000, 3),
+        nn.Linear(1500, 1000),
+        nn.LeakyReLU(),
+        nn.Linear(1000,3)
         )
 
     def forward(self, img,aud ):
 
-
         batch_size = 1
-        h00 = torch.zeros(1, batch_size, 1000)
-        c00 = torch.zeros(1, batch_size, 1000)
-        h10 = torch.zeros(1, batch_size, 1000)
-        c10 = torch.zeros(1, batch_size, 1000)
+
+        h00 = torch.zeros(1, batch_size, 500).to(device)
+        c00 = torch.zeros(1, batch_size, 500).to(device)
+        h10 = torch.zeros(1, batch_size, 1000).to(device)
+        c10 = torch.zeros(1, batch_size, 1000).to(device)
 
         x = self.aud_conv(aud.view((-1,1,60,41)))
 
@@ -106,8 +107,8 @@ class Net(nn.Module):
 
 
 
-        x, _ = self.lstm_aud(x.view((1,-1,10*15*32)), (h00, c00))  # out: tensor of shape (batch_size, seq_length, hidden_size)
-        y, _ = self.lstm_img(y.view((1,-1,16*16*32)), (h10, c10))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+        x, _ = self.lstm_aud(x.view((batch_size,-1,10*15*32)), (h00, c00))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+        y, _ = self.lstm_img(y.view((batch_size,-1,16*16*32)), (h10, c10))  # out: tensor of shape (batch_size, seq_length, hidden_size)
 
 
         x = self.out_fc(torch.cat((x[:, -1, :],y[:, -1, :]),dim=1)) #gets the last step of the lstm (original shape is batch,step number,hidden_size)
@@ -137,7 +138,7 @@ def on_open(ws):
 def thread1(threadname):
     CHUNK = 2**5
     RATE = 22050 #44100
-    LEN = 8
+    LEN = 5
     FORMAT = pyaudio.paInt16
     global record_audio
 
@@ -179,6 +180,8 @@ def thread1(threadname):
             stream.stop_stream()
             stream.close()
             #p.terminate()
+            
+            ws.send('{"event_name":"furhatos.event.actions.ActionSpeech","text":"Hmm let me think"}')
             print("Audio stream finished",time.time()-start)
             #frames = np.array(frames)
             audio_data = extract_features(frames.astype(float)).unsqueeze(0)
@@ -210,9 +213,9 @@ def thread1(threadname):
 def thread3(threadname):
     face_cascade = cv2.CascadeClassifier('faces.xml')
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FPS, 30)
-    cap.set(3,320)
-    cap.set(4,240)
+    cap.set(cv2.CAP_PROP_FPS, 10)
+    cap.set(3,480)
+    cap.set(4,480)
     transform=transforms.Compose([
        transforms.Resize((64,64)),
        transforms.ToTensor()
