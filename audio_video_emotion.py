@@ -40,10 +40,12 @@ class Net(nn.Module):
 
         self.aud_conv =nn.Sequential(
         nn.Conv2d(1, 32, 3, padding = (1,1)),
+        #nn.Conv2d(64, 64, 3, padding = (1,1)),
         nn.BatchNorm2d(32),
         nn.LeakyReLU(),
         nn.MaxPool2d(2),
         nn.Conv2d(32, 32, 3, padding = (1,1)),
+        #nn.Conv2d(32, 32, 3, padding = (1,1)),
         nn.BatchNorm2d(32),
         nn.LeakyReLU(),
         nn.MaxPool2d(2),
@@ -52,28 +54,31 @@ class Net(nn.Module):
 
         self.img_conv =nn.Sequential(
         nn.Conv2d(1, 32, 3, padding = (1,1)),
+        #nn.Conv2d(64, 64, 3, padding = (1,1)),
         nn.BatchNorm2d(32),
         nn.ReLU(),
         nn.MaxPool2d(2),
         nn.Conv2d(32, 32, 3, padding = (1,1)),
+        #nn.Conv2d(32, 32, 3, padding = (1,1)),
         nn.BatchNorm2d(32),
         nn.ReLU(),
         nn.MaxPool2d(2),
         )
         self.lstm_img = nn.LSTM(16*16*32, 1000, 1, batch_first=True)
-        self.lstm_aud = nn.LSTM(10*15*32, 1000, 1, batch_first=True)
+        self.lstm_aud = nn.LSTM(10*15*32, 500, 1, batch_first=True)
 
         self.out_fc = nn.Sequential(
-        nn.Dropout(0.8),
-        nn.Linear(2000, 3),
+        nn.Linear(1500, 1000),
+        nn.LeakyReLU(),
+        nn.Linear(1000,3)
         )
 
     def forward(self, img,aud ):
 
+        batch_size = 1
 
-        batch_size = img.size(0)
-        h00 = torch.zeros(1, batch_size, 1000).to(device)
-        c00 = torch.zeros(1, batch_size, 1000).to(device)
+        h00 = torch.zeros(1, batch_size, 500).to(device)
+        c00 = torch.zeros(1, batch_size, 500).to(device)
         h10 = torch.zeros(1, batch_size, 1000).to(device)
         c10 = torch.zeros(1, batch_size, 1000).to(device)
 
